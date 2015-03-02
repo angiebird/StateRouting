@@ -1,0 +1,281 @@
+
+"""
+Author: Armon Dadgar
+Description:
+  Implements a Piority Queue class using a heap.
+  Expected runtime:
+    - getMinimum: O(1)
+    - deleteMinimum: O(log n)
+    - insert: O(log n)
+"""
+
+class PriorityQueue():
+  
+  # Initialize, create a heap
+  def __init__(self):
+    self.heap = []
+    self.count = 0
+
+  def getMinimum(self):
+    """
+    <Purpose>
+      Gets the element with the minimum priority.
+
+    <Returns>
+      A tuple (priority, value). None if there are no nodes.
+    """
+    # Check the heap size
+    if self.count == 0:
+      return None
+
+    # Return the first element
+    return self.heap[0]
+
+  def insert(self, priority, value):
+    """
+    <Purpose>
+      Inserts a new node into the Priority Queue.
+    
+    <Arguments>
+      priority:
+        The priority for this new node.
+
+      value:
+        The value to associate with this priority
+    """
+    # Create a structure to hold this
+    node = (priority, value)
+
+    # Insert in the last spot
+    index = self.count
+    self.heap.insert(index, node)
+
+    # Increment the node count
+    self.count += 1
+  
+    # While this node has a lower priority, swap it up
+    heap = self.heap
+    parent = ((index-1)>>1)
+    while index > 0 and parent >= 0:
+      parent_node = heap[parent]
+
+      if parent_node[0] > priority:
+        heap[index] = parent_node
+        index = parent
+        parent = ((index-1)>>1)
+
+      else:
+        break
+
+    # Move us to our final place
+    heap[index] = node
+
+
+  def deleteMinimum(self):
+    """
+    <Purpose>
+      Deletes and returns the element with the minimum priority.
+
+    <Returns>
+      A tuple (priority, value). None if there are no nodes.
+    """
+    # Check the heap size
+    if self.count == 0:
+      return None
+
+    # Store a reference to the minimum node
+    minimum_node = self.heap[0]
+
+    # Reduce the heap count
+    self.count -= 1
+    entries = self.count
+
+    # Return if there is nothing left to do
+    if entries == 0:
+      return minimum_node
+
+    # Move the last element to the root
+    heap = self.heap
+    current_node = heap[0] = heap[entries]
+    del heap[entries]
+
+    index = 0
+    while True:
+      # Calculate the left child and break if it is out of range
+      left_child = ((index<<1)+1)
+      if left_child >= entries:
+        break
+
+      left_child_node = heap[left_child]
+
+      # Check if there is a right child
+      if (left_child+1 < entries):
+        right_child_node = heap[left_child+1]
+
+        # Compare the two children, check if left is smaller
+        if left_child_node[0] <= right_child_node[0]:
+          # Compare us to our left child and swap if it is less
+          if left_child_node[0] < current_node[0]:
+            heap[left_child] = current_node
+            heap[index] = left_child_node
+            index = left_child
+
+          else:
+            break
+
+        # Right child is larger
+        else:
+          #Compare us to our right child and swap if it is less
+          if right_child_node[0] < current_node[0]:
+            heap[left_child+1] = current_node
+            heap[index] = right_child_node
+            index = left_child + 1
+
+          else:
+            break
+
+      # Only a left child, swap if less
+      elif left_child_node[0] < current_node[0]:
+        heap[left_child] = current_node
+        heap[index] = left_child_node
+        index = left_child
+
+      # Done otherwise
+      else:
+        break
+
+
+    # Return the original minimum node
+    return minimum_node
+
+
+def genNbr():
+    fp = open("connection.txt")
+    hashMap = {}
+    conn = fp.read()
+    fp.close()
+
+    connLs = conn.split()
+    i = 0
+    while i < len(connLs):
+        sender = connLs[i]
+        recver = connLs[i+1]
+        print sender, recver
+        if sender not in hashMap:
+            hashMap[sender] = []
+
+        hashMap[sender].append(recver)
+        i = i + 2
+    return hashMap
+
+def hello(ip, port, sockobj, thiscommhandle, listencommhandle):
+    msg = sockobj.recv(4096)
+    #print "Get msg:",
+    #print msg
+    #print "ip:", ip, "port:", port
+
+    ls = msg.split()
+    myIp = getmyip()
+
+    if ls[0] == "sendLink":
+        senderIp = ls[1]
+        mycontext['linkLs'].append(senderIp)
+        msg = "confirmLink " + myIp
+        sendMsg(msg, [senderIp])
+    elif ls[0] == "confirmLink":
+        senderIp = ls[1]
+        mycontext['linkLs'].append(senderIp)
+    elif ls[0] == "floodLink":
+        senderIp = ls[1]
+        connMap = mycontext['connMap']
+        if senderIp not in connMap:
+            connMap[senderIp] = ls[2:]
+            sendMsg(msg, False)
+        
+    stopcomm(thiscommhandle)
+
+def confirmLink():
+    print "== confirm link =="
+    for link in mycontext['linkLs']:
+        print link
+
+def sendLink(hashMap):
+    myIp = mycontext['myIp']
+    port = mycontext['port']
+    if myIp in hashMap:
+        linkLs = hashMap[myIp]
+        msg = "sendLink " + myIp
+        sendMsg(msg, linkLs)
+
+def sendMsg(msg, linkLs):
+    if linkLs is False:
+        linkLs = mycontext['linkLs']
+    port = mycontext['port']
+    for link in linkLs:
+        try:
+            sockobj = openconn(link, port)
+            print "==", msg, "to", link
+            sockobj.send(msg)
+        except:
+            print "FF", msg, "to", link
+
+def Dijkstra():
+    print "== Dijkstra"
+    connMap = mycontext['connMap']
+    pq = PriorityQueue()
+    routingTable = mycontext['routingTable']
+
+    myIp = getmyip()
+    pq.insert(0, (myIp, myIp)) # (priority, (target, parent))
+    while pq.getMinimum():
+        node = pq.deleteMinimum()
+        dist = node[0]
+        target = node[1][0]
+        parent = node[1][1]
+        if target not in routingTable:
+            if parent != myIp:
+                routingTable[target] = routingTable[parent];
+            else:
+                routingTable[target] = target;
+            if target in connMap:
+                linkLs = connMap[target]
+                for link in linkLs:
+                    pq.insert(dist + 1, (link, target))
+    for k, v in routingTable.items():
+        print k, v
+        
+
+
+if callfunc == 'initialize':
+    port = int(callargs[0])
+    myIp = getmyip()
+    mycontext['myIp'] = myIp
+    mycontext['linkLs'] = []
+    mycontext['connMap'] = {}
+    mycontext['port'] = port
+    mycontext['routingTable'] = {}
+
+    hashMap = genNbr()
+
+    listencommhandle = waitforconn(myIp,port,hello)
+
+    sendLink(hashMap) 
+    sleep(10)
+
+    confirmLink() 
+
+    linkLs = mycontext['linkLs']
+    msg = "floodLink " + myIp + " " + " ".join(linkLs)
+    sendMsg(msg, False) 
+    sleep(20)
+
+    connMap = mycontext['connMap']
+    print "== connMap"
+    for k, v in connMap.items():
+        print k, v
+
+    Dijkstra() 
+
+
+
+
