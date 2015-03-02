@@ -169,7 +169,7 @@ def genNbr():
     return hashMap
 
 def hello(ip, port, sockobj, thiscommhandle, listencommhandle):
-    msg = sockobj.recv(4096)
+    msg = sockobj.recv(8192)
     #print "Get msg:",
     #print msg
     #print "ip:", ip, "port:", port
@@ -191,6 +191,18 @@ def hello(ip, port, sockobj, thiscommhandle, listencommhandle):
         if senderIp not in connMap:
             connMap[senderIp] = ls[2:]
             sendMsg(msg, False)
+    elif ls[0] == "forwardPkt":
+        routingTable = mycontext['routingTable']
+        senderIp = ls[1]
+        recverIp = ls[2]
+        if recverIp == myIp:
+            print "**", msg
+        else:
+            print "--", msg
+            if recverIp in routingTable:
+                sendMsg(msg, [routingTable[recverIp]])
+            else:
+                print recverIp, "not in routingTable"
         
     stopcomm(thiscommhandle)
 
@@ -215,9 +227,10 @@ def sendMsg(msg, linkLs):
         try:
             sockobj = openconn(link, port)
             print "==", msg, "to", link
-            sockobj.send(msg)
+            num = sockobj.send(msg)
         except:
             print "FF", msg, "to", link
+            print link
 
 def Dijkstra():
     print "== Dijkstra"
@@ -243,7 +256,15 @@ def Dijkstra():
                     pq.insert(dist + 1, (link, target))
     for k, v in routingTable.items():
         print k, v
-        
+
+def checkForwardPkt():
+    print "== checkForwardPkt"
+    routingTable = mycontext['routingTable']
+    myIp = getmyip()
+    if myIp == routingTable.items()[0][0]:
+        for k, v in routingTable.items():
+            msg = "forwardPkt " + myIp + " " + k
+            sendMsg(msg, [v])
 
 
 if callfunc == 'initialize':
@@ -275,6 +296,11 @@ if callfunc == 'initialize':
         print k, v
 
     Dijkstra() 
+
+    sleep(10)
+
+    checkForwardPkt()
+
 
 
 
