@@ -149,6 +149,7 @@ class PriorityQueue():
     return minimum_node
 
 
+
 def genNbr():
     fp = open("connection.txt")
     hashMap = {}
@@ -179,17 +180,34 @@ def hello(ip, port, sockobj, thiscommhandle, listencommhandle):
 
     if ls[0] == "sendLink":
         senderIp = ls[1]
-        mycontext['linkLs'].append(senderIp)
-        msg = "confirmLink " + myIp
+        sendTime = ls[2]
+        #mycontext['linkLs'].append(senderIp)
+        msg = "confirmLink " + myIp + " " + sendTime
         sendMsg(msg, [senderIp])
     elif ls[0] == "confirmLink":
         senderIp = ls[1]
-        mycontext['linkLs'].append(senderIp)
+        sendTime = float(ls[2])
+        rtt = getruntime() - sendTime
+        mycontext['linkLs'].append((senderIp, rtt))
+        msg = "confirmLink2 " + myIp + " " + str(rtt)
+        sendMsg(msg, [senderIp])
+    elif ls[0] == "confirmLink2":
+        senderIp = ls[1]
+        rtt = float(ls[2])
+        mycontext['linkLs'].append((senderIp, rtt))
+
     elif ls[0] == "floodLink":
+        print "++" + msg
         senderIp = ls[1]
         connMap = mycontext['connMap']
         if senderIp not in connMap:
-            connMap[senderIp] = ls[2:]
+            itemLs = ls[2:]
+            linkLs = []
+            i = 0
+            while i < len(itemLs):
+                linkLs.append((itemLs[i], float(itemLs[i+1])))
+                i += 2
+            connMap[senderIp] = linkLs
             sendMsg(msg, False)
     elif ls[0] == "forwardPkt":
         routingTable = mycontext['routingTable']
@@ -197,6 +215,9 @@ def hello(ip, port, sockobj, thiscommhandle, listencommhandle):
         recverIp = ls[2]
         if recverIp == myIp:
             print "**", msg
+            delay = getruntime() - float(ls[3])
+            print "**", "delay:", getruntime() - float(ls[3]) 
+            mycontext["recvPktLs"].append([msg, delay])
         else:
             print "--", msg
             if recverIp in routingTable:
@@ -216,12 +237,12 @@ def sendLink(hashMap):
     port = mycontext['port']
     if myIp in hashMap:
         linkLs = hashMap[myIp]
-        msg = "sendLink " + myIp
+        msg = "sendLink " + myIp + " " + str(getruntime())
         sendMsg(msg, linkLs)
 
 def sendMsg(msg, linkLs):
     if linkLs is False:
-        linkLs = mycontext['linkLs']
+        linkLs = [item[0] for item in mycontext['linkLs']]
     port = mycontext['port']
     for link in linkLs:
         try:
@@ -253,7 +274,7 @@ def Dijkstra():
             if target in connMap:
                 linkLs = connMap[target]
                 for link in linkLs:
-                    pq.insert(dist + 1, (link, target))
+                    pq.insert(dist + link[1], (link[0], target))
     for k, v in routingTable.items():
         print k, v
 
@@ -261,10 +282,23 @@ def checkForwardPkt():
     print "== checkForwardPkt"
     routingTable = mycontext['routingTable']
     myIp = getmyip()
-    if myIp == routingTable.items()[0][0]:
-        for k, v in routingTable.items():
-            msg = "forwardPkt " + myIp + " " + k
-            sendMsg(msg, [v])
+    for k, v in routingTable.items():
+        msg = "forwardPkt " + myIp + " " + k + " " + str(getruntime())
+        sendMsg(msg, [v])
+
+def checkRecvPkt():
+    print "== checkRecvPkt"
+    for pkt in mycontext['recvPktLs']:
+        print pkt[1], pkt[0]
+
+def floodLink():
+    linkLs = mycontext['linkLs']
+    itemLs = []
+    for item in linkLs:
+        itemLs.append(item[0])
+        itemLs.append(str(item[1]))
+    msg = "floodLink " + myIp + " " + " ".join(itemLs)
+    sendMsg(msg, False) 
 
 
 if callfunc == 'initialize':
@@ -275,6 +309,7 @@ if callfunc == 'initialize':
     mycontext['connMap'] = {}
     mycontext['port'] = port
     mycontext['routingTable'] = {}
+    mycontext['recvPktLs'] = []
 
     hashMap = genNbr()
 
@@ -285,9 +320,7 @@ if callfunc == 'initialize':
 
     confirmLink() 
 
-    linkLs = mycontext['linkLs']
-    msg = "floodLink " + myIp + " " + " ".join(linkLs)
-    sendMsg(msg, False) 
+    floodLink()
     sleep(20)
 
     connMap = mycontext['connMap']
@@ -300,6 +333,10 @@ if callfunc == 'initialize':
     sleep(10)
 
     checkForwardPkt()
+
+    sleep(10)
+
+    checkRecvPkt()
 
 
 
