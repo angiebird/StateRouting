@@ -11,7 +11,9 @@ angiebird@browsegood !>on browsegood
 angiebird@browsegood !>list
 
 copy IP information to host_list.txt
+
 Example:
+
   %1         204.8.155.226:2888:v8      Fresh                               
   %2        129.32.84.160:2888:v10      Fresh                               
   %3          132.170.3.32:1224:v8      Fresh                               
