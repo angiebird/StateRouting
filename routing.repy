@@ -151,6 +151,7 @@ class PriorityQueue():
 
 
 def genNbr():
+    print "== connection.txt"
     fp = open("connection.txt")
     hashMap = {}
     conn = fp.read()
@@ -179,12 +180,14 @@ def hello(ip, port, sockobj, thiscommhandle, listencommhandle):
     myIp = getmyip()
 
     if ls[0] == "sendLink":
+        print "--", msg
         senderIp = ls[1]
         sendTime = ls[2]
         #mycontext['linkLs'].append(senderIp)
         msg = "confirmLink " + myIp + " " + sendTime
         sendMsg(msg, [senderIp])
     elif ls[0] == "confirmLink":
+        print "--", msg
         senderIp = ls[1]
         sendTime = float(ls[2])
         rtt = getruntime() - sendTime
@@ -192,6 +195,7 @@ def hello(ip, port, sockobj, thiscommhandle, listencommhandle):
         msg = "confirmLink2 " + myIp + " " + str(rtt)
         sendMsg(msg, [senderIp])
     elif ls[0] == "confirmLink2":
+        print "--", msg
         senderIp = ls[1]
         rtt = float(ls[2])
         mycontext['linkLs'].append((senderIp, rtt))
@@ -214,12 +218,11 @@ def hello(ip, port, sockobj, thiscommhandle, listencommhandle):
         senderIp = ls[1]
         recverIp = ls[2]
         if recverIp == myIp:
-            print "**", msg
             delay = getruntime() - float(ls[3])
-            print "**", "delay:", getruntime() - float(ls[3]) 
+            print "GET: ", msg, "delay:", getruntime() - float(ls[3]) 
             mycontext["recvPktLs"].append([msg, delay])
         else:
-            print "--", msg
+            #print "--", msg
             if recverIp in routingTable:
                 sendMsg(msg, [routingTable[recverIp]])
             else:
@@ -228,11 +231,12 @@ def hello(ip, port, sockobj, thiscommhandle, listencommhandle):
     stopcomm(thiscommhandle)
 
 def confirmLink():
-    print "== confirm link =="
+    print "== confirmLink"
     for link in mycontext['linkLs']:
         print link
 
 def sendLink(hashMap):
+    print "== sendLink"
     myIp = mycontext['myIp']
     port = mycontext['port']
     if myIp in hashMap:
@@ -247,7 +251,7 @@ def sendMsg(msg, linkLs):
     for link in linkLs:
         try:
             sockobj = openconn(link, port)
-            print "==", msg, "to", link
+            #print "==", msg, "to", link
             num = sockobj.send(msg)
         except:
             print "FF", msg, "to", link
@@ -278,21 +282,31 @@ def Dijkstra():
     for k, v in routingTable.items():
         print k, v
 
-def checkForwardPkt():
-    print "== checkForwardPkt"
+def checkConnMap():
+    connMap = mycontext['connMap']
+    print "== connMap"
+    for k, v in connMap.items():
+        print k, v
+
+def forwardPkt():
+    print "== forwardPkt"
     routingTable = mycontext['routingTable']
     myIp = getmyip()
     for k, v in routingTable.items():
         msg = "forwardPkt " + myIp + " " + k + " " + str(getruntime())
+        print "SEND:", msg
         sendMsg(msg, [v])
 
 def checkRecvPkt():
     print "== checkRecvPkt"
     for pkt in mycontext['recvPktLs']:
-        print pkt[1], pkt[0]
+        print pkt[0], "delay:", pkt[1] 
 
 def floodLink():
     linkLs = mycontext['linkLs']
+    myIp = getmyip()
+    connMap = mycontext['connMap']
+    connMap[myIp] = linkLs
     itemLs = []
     for item in linkLs:
         itemLs.append(item[0])
@@ -323,18 +337,13 @@ if callfunc == 'initialize':
     floodLink()
     sleep(20)
 
-    connMap = mycontext['connMap']
-    print "== connMap"
-    for k, v in connMap.items():
-        print k, v
+    checkConnMap()
 
     Dijkstra() 
-
     sleep(10)
 
-    checkForwardPkt()
-
-    sleep(10)
+    forwardPkt()
+    sleep(20)
 
     checkRecvPkt()
 
